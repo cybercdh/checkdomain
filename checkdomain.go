@@ -1,52 +1,61 @@
 package main
 
 import (
-   "io/ioutil"
-   "log"
-   "bufio"
-   "os"
-   "net/http"
-   "strings"
+	"bufio"
+	"flag"
+	"io"
+	"io/ioutil"
+	"log"
+	"net/http"
+	"os"
+	"strings"
 )
 
-func main(){
+func main() {
 
-   API_KEY := os.Getenv("MASHAPE_KEY")
-   C2_FILE := os.Args[1]
+	flag.Parse()
 
-   file, err := os.Open(C2_FILE)
-    if err != nil {
-        log.Fatal(err)
-    }
-    defer file.Close()
+	API_KEY, present := os.LookupEnv("MASHAPE_KEY")
+	if !present {
+		log.Fatalln("API Key not found")
+	}
 
-    scanner := bufio.NewScanner(file)
+	// read user input
+	var domains io.Reader
+	domains = os.Stdin
 
-    for scanner.Scan() {
+	arg_domain := flag.Arg(0)
+	if arg_domain != "" {
+		domains = strings.NewReader(arg_domain)
+	}
 
-      c2 := scanner.Text()
+	sc := bufio.NewScanner(domains)
 
-      resp, err := http.Get("https://domainr.p.rapidapi.com/v2/status?mashape-key=" + API_KEY + "&domain=" + c2)
+	for sc.Scan() {
 
-      if err != nil {
-         log.Fatalln(err)
-      }
+		c2 := sc.Text()
 
-      body, err := ioutil.ReadAll(resp.Body)
-      if err != nil {
-         log.Fatalln(err)
-      }
+		resp, err := http.Get("https://domainr.p.rapidapi.com/v2/status?mashape-key=" + API_KEY + "&domain=" + c2)
 
-      // only output domains that are not active
-      sb := string(body)
-      if strings.Contains(sb,"inactive") {
-         log.Printf(sb)   
-      }
-       
-    }
+		if err != nil {
+			log.Fatalln(err)
+		}
 
-    if err := scanner.Err(); err != nil {
-        log.Fatal(err)
-    }
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			log.Fatalln(err)
+		}
 
-}  
+		// only output domains that are not active
+		sb := string(body)
+		if strings.Contains(sb, "inactive") {
+			log.Printf(sb)
+		}
+
+	}
+
+	if err := sc.Err(); err != nil {
+		log.Fatal(err)
+	}
+
+}
